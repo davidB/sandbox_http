@@ -7,8 +7,8 @@ Polling is a way to handle long or delayed work without blocking a TCP connectio
 
 ```mermaid
 sequenceDiagram
-    participant C as Client
-    participant A as User-Agent (wrapper)
+    participant C as Caller
+    participant A as User-Agent
     participant S as HttpServer
     participant W as Worker
 
@@ -37,12 +37,12 @@ This approach imply a **per endpoint** logic :-( !
 - the server provide the endpoint to get the result
 - the information are provided via http status code & attribute like handling of authentication, trace, circuit breaker, rate-limit...
 
-So on client side, the logic can handled in a endpoint agnostic way (eg at the user-agent wrapper level), and reuse for every endpoint that use polling.
+So on caller side, the logic can handled in a endpoint agnostic way (eg at the user-agent wrapper level), and reuse for every endpoint that use polling.
 
 ```mermaid
 sequenceDiagram
-    participant C as Client
-    participant A as User-Agent (wrapper)
+    participant C as Caller
+    participant A as User-Agent
     participant S as HttpServer
     participant W as Worker
 
@@ -66,17 +66,17 @@ sequenceDiagram
 - server can adjust `Retry-After`, with estimation based on current load, progress of the work,...
 - server can adjust the location of the response maybe to add complementary query param,...
 - the protocol becomes is agnostic of the endpoint (may could become a "standard")
-- the client & user-agent are free to handle the polling as they want, it could like in the first example (with more information) or with a more complex way with queue intermediate state, via sidecar or proxy...
+- the caller & user-agent are free to handle the polling as they want, it could like in the first example (with more information) or with a more complex way with queue intermediate state, via sidecar or proxy...
   - user-agent is free to follow redirect automatically or not, and to handle them as a blocking or non-blocking way
   - user-agent handle retry-after like retries on
     - rate-limit: 429 (Too Many Request) + Retry-After
     - downtime: 503  (Service Unavailable) + Retry-After
     - ...
-  - the `work_id` & polling can be nearly hide to Client, it's like a regular POST request that return the response
+  - the `work_id` & polling can be nearly hide to Caller, it's like a regular POST request that return the response
 
 ### Cons
 
-- the Client should handle response of `GET /work/{work_id}` as response of `POST /start_work` (both possible error,...)
+- the Caller should handle response of `GET /work/{work_id}` as response of `POST /start_work` (both possible error,...)
 - Maybe the default implementation of user agent for follow redirect should be changed or handled by the wrapper
   - the user-agent should change the method from POST to GET on redirection (allowed for 301 (Move Permanently), 302 (Found), 303 (See Other)), this behavior can coded at the user-agent wrapper level.
   - some user-agent don't handle `Retry-After` (remember http header are case insensitive)
@@ -163,7 +163,7 @@ async fn work(Path(work_id): Path<Uuid>, Extension(works): Extension<WorkDb>) ->
 }
 ```
 
-### client curl
+### Caller with curl
 
 ```sh
 curl -v --location "http://localhost:8080/start_work" -d ""
