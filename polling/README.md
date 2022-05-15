@@ -103,6 +103,10 @@ Extracted from [Retry-After - HTTP | MDN](https://developer.mozilla.org/en-US/do
 
 ## Implementations (aka PoC)
 
+🚧
+WARNING: the code is not optimal, and lot of improvements can be done. PR & feedbacks are welcomed (improvements, implementation for other clients,...)
+🚧
+
 ### A basic server
 
 For the PoC, I created a basic http service in Rust. The code is available at [sandbox_http/polling/server-axum at development · davidB/sandbox_http](https://github.com/davidB/sandbox_http/tree/development/polling/server-axum).
@@ -162,6 +166,8 @@ async fn work(Path(work_id): Path<Uuid>, Extension(works): Extension<WorkDb>) ->
     }
 }
 ```
+
+- Do not forgot to protect the endpoint (like others) with a kind of rate-limit
 
 ### Caller with curl
 
@@ -245,3 +251,41 @@ curl -v --location "http://localhost:8080/start_work" -d ""
 * Maximum (50) redirects followed
 curl: (47) Maximum (50) redirects followed
 ```
+
+### Caller with your favorite programming language
+
+- There is lot chance that the `Retry-After` is not well supported by your http client / user-agent. So
+  - Test it, or notify your API consumers & customers to test it
+  - Open a ticket/issue to the project to request support or make a PR
+  - provide a workaround solution (until official support):
+    - Disable the default follow redirection,
+    - Implement follow redirect with support of `Retry-After` into your wrapper
+- The way to handle delay can be shared with retry for "rate-limit", "downtime", "circuit-breaker"
+
+As demonstration purpose I make a sample with [reqwest]() one of the most used http client in Rust.
+You can look at it at [sandbox_http/polling_with_reqwest.rs at development · davidB/sandbox_http](https://github.com/davidB/sandbox_http/blob/development/polling/server-axum/tests/polling_with_reqwest.rs)
+
+The output of the test:
+
+```txt
+running 1 test
+110ns : check info, then continue, retry or follow
+4.002665744s : check info, then continue, retry or follow
+5.004217149s : check info, then continue, retry or follow
+6.007647326s : check info, then continue, retry or follow
+7.010080187s : check info, then continue, retry or follow
+8.012471894s : check info, then continue, retry or follow
+[tests/polling_with_reqwest.rs:152] &body = WorkOutput {
+    nb_get_call: 4,
+    duration: 8s,
+}
+test polling_with_reqwest ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.03s
+```
+
+🎉 Success:
+
+- the first retry is after 4s because we defined on server as half of the duration of the work,
+- following call as a duration around 1s
+- the http client doesn't included endpoint dedicated rules (no parse of the body, no build of url,...)
