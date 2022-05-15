@@ -1,5 +1,7 @@
 # Experimentation: Polling with http
 
+(also published at [Add a friendly HTTP polling to your API - DEV Community 👩‍💻👨‍💻](https://dev.to/davidb31/add-a-friendly-http-polling-to-your-api-3jle))
+
 Polling is a way to handle long or delayed work without blocking a TCP connection. To do polling on http server we need at least 2 endpoints:
 
 - the endpoint to start the work (eg: `POST /start_work`)
@@ -31,7 +33,7 @@ This approach imply a **per endpoint** logic :-( !
 - how to convert `work_id` into request for `GET /work/{work_id}` and handle the response
 - the retry interval is defined by documentation or arbitrary value
 
-## Concept Evolution
+## Concept Evolution: use http status-code and header
 
 - the server provide the interval, or at least an estimation for when to try next time
 - the server provide the endpoint to get the result
@@ -61,7 +63,7 @@ sequenceDiagram
 
 ```
 
-### Pros
+### ✅ Pros
 
 - server can adjust `Retry-After`, with estimation based on current load, progress of the work,...
 - server can adjust the location of the response maybe to add complementary query param,...
@@ -74,10 +76,10 @@ sequenceDiagram
     - ...
   - the `work_id` & polling can be nearly hide to Caller, it's like a regular POST request that return the response
 
-### Cons
+### ❌ Cons
 
 - the Caller should handle response of `GET /work/{work_id}` as response of `POST /start_work` (both possible error,...)
-- Maybe the default implementation of user agent for follow redirect should be changed or handled by the wrapper
+- often the implementation of user agent about following redirect, should be changed or handled by the wrapper
   - the user-agent should change the method from POST to GET on redirection (allowed for 301 (Move Permanently), 302 (Found), 303 (See Other)), this behavior can coded at the user-agent wrapper level.
   - some user-agent don't handle `Retry-After` (remember http header are case insensitive)
   - Some user-agent have a maximum number of redirect (eg with curl `Maximum (50) redirects followed`)
@@ -289,3 +291,5 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 - the first retry is after 4s because we defined on server as half of the duration of the work,
 - following call as a duration around 1s
 - the http client doesn't included endpoint dedicated rules (no parse of the body, no build of url,...)
+- supporting an other endpoint with polling doesn't require additional code
+- bonus: support of downtime & rate-limit returning `Retry-After`
