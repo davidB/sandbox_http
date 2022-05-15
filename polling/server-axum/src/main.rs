@@ -4,9 +4,9 @@ use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::routing::post;
 use axum::Extension;
+use axum::Json;
 use axum::Router;
 use clap::Parser;
-use http::header::HeaderName;
 use http::StatusCode;
 use rand::prelude::*;
 use serde::Serialize;
@@ -117,11 +117,13 @@ async fn start_work(Extension(works): Extension<WorkDb>) -> impl IntoResponse {
     let work_id = Uuid::new_v4();
     let duration = Duration::from_secs(rng.gen_range(1..=20));
     let end_at = Instant::now() + duration;
-    let get_url = format!("/work/{}", work_id.clone());
+
+    let get_url = format!("/work/{}", work_id);
+    let next_try = duration.as_secs() / 2;
 
     let mut works = works.lock().expect("acquire works lock to start_work");
     works.insert(
-        work_id.clone(),
+        work_id,
         Work {
             work_id,
             end_at,
@@ -133,22 +135,34 @@ async fn start_work(Extension(works): Extension<WorkDb>) -> impl IntoResponse {
         StatusCode::SEE_OTHER,
         [
             (http::header::LOCATION, get_url),
-            (
-                http::header::RETRY_AFTER,
-                format!("{}", duration.as_secs() / 2),
-            ),
+            (http::header::RETRY_AFTER, format!("{}", next_try)),
         ],
     )
-        .into_response()
 }
 
 async fn work(Path(work_id): Path<Uuid>, Extension(works): Extension<WorkDb>) -> impl IntoResponse {
     let mut works = works.lock().expect("acquire works lock to get_work");
-    // match works.get(Uuid::parse_str(&work_id).expect("valid uuid")) {
     tracing::info!(?work_id, "request work result");
-    match works.get(&work_id) {
-        None => (StatusCode::NOT_FOUND),
-        Some(work) => (StatusCode::OK),
+    match works.get_mut(&work_id) {
+        None => (StatusCode::NOT_FOUND).into_response(),
+        Some(work) => {
+            if work.end_at > Instant::now() {
+                work.nb_get_call += 1;
+
+                let get_url = format!("/work/{}", work.work_id);
+                let next_try = 1;
+                (
+                    StatusCode::SEE_OTHER,
+                    [
+                        (http::header::LOCATION, get_url),
+                        (http::header::RETRY_AFTER, format!("{}", next_try)),
+                    ],
+                )
+                    .into_response()
+            } else {
+                (StatusCode::OK, Json(work.clone())).into_response()
+            }
+        }
     }
 }
 
