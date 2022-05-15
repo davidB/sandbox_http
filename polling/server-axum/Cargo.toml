@@ -1,5 +1,5 @@
 [package]
-name = "server-aum"
+name = "server-axum"
 version = "0.1.0"
 edition = "2021"
 publish = false
@@ -9,7 +9,6 @@ axum = "0.5"
 clap = { version = "3.1", features = ["derive", "env"] }
 http = "0.2"
 rand = "0.8"
-reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0.79"
 tokio = { version = "1.17", features = ["full"] }
@@ -24,10 +23,19 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
 uuid = { version = "1.0", features = ["v4", "serde"] }
 
 [dev-dependencies]
+# redeclare every dependencies like if external
+anyhow = "1.0"
 assert2 = "0.3.6"
+async-trait = "0.1"
+http = "0.2"
 mime = "0.3"
-assert-json-diff = "2.0.1"
-hyper = { version = "0.14", features = ["full"] }
+reqwest-middleware = "0.1"
+reqwest = "0.11"
+serde = { version = "1.0.136", features = ["derive"] }
+serde_json = "1.0.79"
+task-local-extensions = "0.1.1"
+tokio = { version = "1.17", features = ["full"] }
+url = "2.2"
 
 [profile.release]
 codegen-units = 1
